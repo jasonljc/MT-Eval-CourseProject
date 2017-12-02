@@ -1,6 +1,6 @@
+import config
+import word_match
 
-def word_matches(h, ref):
-    return sum(1 for w in h if w in ref)
 
 def get_chunk_num(h, ref):
     '''Get number of matching chunks.
@@ -35,8 +35,11 @@ def get_chunk_num(h, ref):
     return memoize[-1]
         
  
-def meteor(h, ref, a):
-    matches = word_matches(h, set(ref))
+def meteor(h, ref, a, unigram_match=None):
+    if not h or not ref:
+        print h, ref
+        return 0
+    matches = word_match.word_matches(h, set(ref)) if not unigram_match else unigram_match
     recall = float(matches)/len(ref)
     precision = float(matches)/len(h)
     f_score = precision*recall/((1.0-a)*recall+a*precision) if matches!=0 else 0

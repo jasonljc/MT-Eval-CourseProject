@@ -1,16 +1,12 @@
 #!/usr/bin/env python
 import argparse # optparse is deprecated
+import codecs
+import config
 from itertools import islice # slicing for iterators
- 
-def word_matches(h, ref):
-    return sum(1 for w in h if w in ref)
- 
-def meteor(h, ref, a):
-    matches = word_matches(h, set(ref))
-    recall = float(matches)/len(ref)
-    precision = float(matches)/len(h)
-    return precision*recall/((1.0-a)*recall+a*precision) if precision!=0 and recall!=0 else 0
- 
+import meteor_evaluator
+import preprocess
+import word_match
+
 def main():
     parser = argparse.ArgumentParser(description='Evaluate translation hypotheses.')
     parser.add_argument('-i', '--input', default='data/hyp1-hyp2-ref',
@@ -23,14 +19,22 @@ def main():
  
     # we create a generator and avoid loading all sentences into a list
     def sentences():
-        with open(opts.input) as f:
+        with codecs.open(opts.input, 'r', 'utf-8') as f:
             for pair in f:
                 yield [sentence.strip().split() for sentence in pair.split(' ||| ')]
  
     # note: the -n option does not work in the original code
     for h1, h2, ref in islice(sentences(), opts.num_sentences):
-        h1_meteor = meteor(h1, ref, opts.alpha)
-        h2_meteor = meteor(h2, ref, opts.alpha)
+        if config.remove_punc:
+            h1 = preprocess.remove_punctuations(h1)
+            h2 = preprocess.remove_punctuations(h2)
+            ref = preprocess.remove_punctuations(ref)
+        h1_unigram = word_match.word_matches(h1, ref)
+        h2_unigram = word_match.word_matches(h2, ref)    
+        h1_meteor = meteor_evaluator.meteor(h1, ref, opts.alpha, h1_unigram)
+        h2_meteor = meteor_evaluator.meteor(h2, ref, opts.alpha, h2_unigram)
+        # h1_bleu = bleu_evaluator.bleu(h1, ref, h1_unigram)
+        # h2_bleu = bleu_evaluator.bleu(h2, ref, h2_unigram)
         print(1 if h1_meteor > h2_meteor else # \begin{cases}
                 (0 if h1_meteor == h2_meteor
                     else -1)) # \end{cases}
