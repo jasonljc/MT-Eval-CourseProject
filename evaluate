@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+import argparse # optparse is deprecated
+from itertools import islice # slicing for iterators
+ 
+def word_matches(h, ref):
+    return sum(1 for w in h if w in ref)
+ 
+def meteor(h, ref, a):
+    matches = word_matches(h, set(ref))
+    recall = float(matches)/len(ref)
+    precision = float(matches)/len(h)
+    return precision*recall/((1.0-a)*recall+a*precision) if precision!=0 and recall!=0 else 0
+ 
+def main():
+    parser = argparse.ArgumentParser(description='Evaluate translation hypotheses.')
+    parser.add_argument('-i', '--input', default='data/hyp1-hyp2-ref',
+            help='input file (default data/hyp1-hyp2-ref)')
+    parser.add_argument('-n', '--num_sentences', default=None, type=int,
+            help='Number of hypothesis pairs to evaluate')
+    parser.add_argument('-a', '--alpha', default=0.5, type=float)
+    # note that if x == [1, 2, 3], then x[:None] == x[:] == x (copy); no need for sys.maxint
+    opts = parser.parse_args()
+ 
+    # we create a generator and avoid loading all sentences into a list
+    def sentences():
+        with open(opts.input) as f:
+            for pair in f:
+                yield [sentence.strip().split() for sentence in pair.split(' ||| ')]
+ 
+    # note: the -n option does not work in the original code
+    for h1, h2, ref in islice(sentences(), opts.num_sentences):
+        h1_meteor = meteor(h1, ref, opts.alpha)
+        h2_meteor = meteor(h2, ref, opts.alpha)
+        print(1 if h1_meteor > h2_meteor else # \begin{cases}
+                (0 if h1_meteor == h2_meteor
+                    else -1)) # \end{cases}
+ 
+# convention to allow import of this file as a module
+if __name__ == '__main__':
+    main()
